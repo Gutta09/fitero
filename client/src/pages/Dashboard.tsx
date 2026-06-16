@@ -23,12 +23,35 @@ export default function Dashboard() {
     { calories: 0, protein: 0, carbs: 0, fat: 0 }
   ) ?? { calories: 0, protein: 0, carbs: 0, fat: 0 };
 
-  const thisWeek = store.getWorkoutLogs().filter((l) => {
+  const allLogs = store.getWorkoutLogs();
+  const thisWeek = allLogs.filter((l) => {
     const d = new Date(l.date);
     const now = new Date();
     const diff = (now.getTime() - d.getTime()) / 86400000;
     return diff <= 7;
   });
+
+  // Calculate workout streak (consecutive days ending today/yesterday)
+  const streak = (() => {
+    const dates = new Set(allLogs.map((l) => l.date.slice(0, 10)));
+    let count = 0;
+    const cursor = new Date();
+    // Allow streak to count if today hasn't been logged yet (check from yesterday)
+    if (!dates.has(cursor.toISOString().slice(0, 10))) {
+      cursor.setDate(cursor.getDate() - 1);
+    }
+    while (dates.has(cursor.toISOString().slice(0, 10))) {
+      count++;
+      cursor.setDate(cursor.getDate() - 1);
+    }
+    return count;
+  })();
+
+  const weeklyGoal = activeProgram?.daysPerWeek ?? 4;
+  const weeklyDone = thisWeek.length;
+  const ringPct = Math.min(1, weeklyDone / weeklyGoal);
+  const RING_R = 28;
+  const RING_CIRC = 2 * Math.PI * RING_R;
 
   const today = new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
 
@@ -40,6 +63,54 @@ export default function Dashboard() {
         <h1 style={{ fontSize: 42, fontWeight: 900 }}>
           GM, <span style={{ color: "var(--gold)" }}>{profile.name}</span>
         </h1>
+      </div>
+
+      {/* Streak + Weekly Ring hero row */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 20 }}>
+        {/* Streak card */}
+        <div className="card" style={{ padding: "24px 28px", display: "flex", alignItems: "center", gap: 20 }}>
+          <div style={{ fontSize: 48, lineHeight: 1 }}>🔥</div>
+          <div>
+            <div style={{ fontSize: 48, fontFamily: "Barlow Condensed", fontWeight: 900, color: "var(--gold)", lineHeight: 1 }}>
+              {streak}
+            </div>
+            <div style={{ fontSize: 12, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.1em", marginTop: 4 }}>
+              Day Streak
+            </div>
+            <div style={{ fontSize: 12, color: "var(--green)", marginTop: 4 }}>
+              {streak === 0 ? "Start your streak today!" : streak >= 7 ? "On fire! Keep it up 💪" : "Building momentum…"}
+            </div>
+          </div>
+        </div>
+        {/* Weekly goal ring */}
+        <div className="card" style={{ padding: "24px 28px", display: "flex", alignItems: "center", gap: 20 }}>
+          <svg width={80} height={80} viewBox="0 0 80 80">
+            <circle cx={40} cy={40} r={RING_R} fill="none" stroke="var(--border)" strokeWidth={6} />
+            <circle
+              cx={40} cy={40} r={RING_R}
+              fill="none"
+              stroke={ringPct >= 1 ? "var(--green)" : "var(--gold)"}
+              strokeWidth={6}
+              strokeDasharray={RING_CIRC}
+              strokeDashoffset={RING_CIRC * (1 - ringPct)}
+              strokeLinecap="round"
+              transform="rotate(-90 40 40)"
+              style={{ transition: "stroke-dashoffset 0.6s ease" }}
+            />
+            <text x={40} y={44} textAnchor="middle" fill="var(--cream)" fontSize={16} fontFamily="Barlow Condensed" fontWeight={800}>
+              {weeklyDone}/{weeklyGoal}
+            </text>
+          </svg>
+          <div>
+            <div style={{ fontSize: 18, fontWeight: 700, color: "var(--cream)" }}>Weekly Goal</div>
+            <div style={{ fontSize: 13, color: "var(--muted)", marginTop: 4 }}>
+              {weeklyDone >= weeklyGoal ? "🎉 Goal complete!" : `${weeklyGoal - weeklyDone} session${weeklyGoal - weeklyDone !== 1 ? "s" : ""} to go`}
+            </div>
+            <div style={{ marginTop: 10, height: 4, background: "var(--border)", borderRadius: 2, width: 120, overflow: "hidden" }}>
+              <div style={{ height: "100%", width: `${ringPct * 100}%`, background: ringPct >= 1 ? "var(--green)" : "var(--gold)", borderRadius: 2, transition: "width 0.6s ease" }} />
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Quick stats */}
