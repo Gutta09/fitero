@@ -4,6 +4,7 @@ import { store } from "../data/store.ts";
 import { PROGRAMS } from "../data/programs.ts";
 import type { Exercise } from "../data/programs.ts";
 import { useTimer } from "../hooks/useTimer.ts";
+import ExerciseModal from "../components/ExerciseModal.tsx";
 
 type SetEntry = { id: string; reps: string; weight: string; done: boolean };
 type ExerciseState = { exercise: Exercise; sets: SetEntry[] };
@@ -33,6 +34,15 @@ function serializeExercise(ex: ExerciseState) {
   return { name: ex.exercise.name, sets: ex.sets.filter((s) => s.done).map(serializeSet) };
 }
 
+function calcStreak(): number {
+  const logs = store.getWorkoutLogs();
+  const dates = new Set(logs.map((l) => l.date.slice(0, 10)));
+  let count = 0;
+  const cursor = new Date();
+  while (dates.has(cursor.toISOString().slice(0, 10))) { count++; cursor.setDate(cursor.getDate() - 1); }
+  return count;
+}
+
 function getProgressiveSuggestion(exerciseName: string, targetRepsStr: string) {
   const lastSets = store.getLastExerciseData(exerciseName);
   if (!lastSets || lastSets.length === 0) return null;
@@ -43,6 +53,92 @@ function getProgressiveSuggestion(exerciseName: string, targetRepsStr: string) {
   const targetReps = Number.parseInt(targetRepsStr.split("-")[0]) || 8;
   const suggestion = lastAvgReps >= targetReps ? lastAvgWeight + 2.5 : lastAvgWeight;
   return { lastAvgWeight, lastAvgReps: Math.round(lastAvgReps), suggestion };
+}
+
+type ActiveExerciseCardProps = Readonly<{
+  exState: ExerciseState;
+  exIdx: number;
+  onUpdateSet: (exIdx: number, setIdx: number, field: keyof SetEntry, value: string | boolean) => void;
+  onCompleteSet: (exIdx: number, setIdx: number, restSec: number) => void;
+  onInfoClick: (name: string) => void;
+}>;
+
+function ActiveExerciseCard({ exState, exIdx, onUpdateSet, onCompleteSet, onInfoClick }: ActiveExerciseCardProps) {
+  const overload = getProgressiveSuggestion(exState.exercise.name, exState.exercise.reps);
+  return (
+    <div className="card">
+      <div style={{ padding: "14px 20px", background: exState.exercise.fst7 ? "rgba(201,168,76,0.1)" : "var(--dark2)", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ fontWeight: 700, fontSize: 16 }}>{exState.exercise.name}</span>
+            {exState.exercise.fst7 && (
+              <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 20, background: "var(--gold)", color: "var(--black)", letterSpacing: "0.06em" }}>FST-7</span>
+            )}
+          </div>
+          {exState.exercise.notes && <div style={{ fontSize: 12, color: "var(--gold)", marginTop: 2 }}>{exState.exercise.notes}</div>}
+          {overload ? (
+            <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 3 }}>
+              Last: <span style={{ color: "var(--text)" }}>{overload.lastAvgWeight}kg × {overload.lastAvgReps}</span>
+              {" · "}Target: <span style={{ color: "var(--gold)", fontWeight: 700 }}>{overload.suggestion}kg</span>
+            </div>
+          ) : (
+            <div style={{ fontSize: 11, color: "var(--muted2)", marginTop: 3 }}>First time — establish your baseline</div>
+          )}
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <button
+            onClick={() => onInfoClick(exState.exercise.name)}
+            style={{ background: "none", border: "1px solid var(--border)", borderRadius: 6, padding: "4px 9px", color: "var(--muted)", cursor: "pointer", fontSize: 14 }}
+            title="Exercise guide"
+          >ℹ</button>
+          <div style={{ fontSize: 13, color: "var(--muted)" }}>{exState.exercise.muscleGroup}</div>
+        </div>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "40px 1fr 1fr 100px", gap: 8, padding: "8px 20px", fontSize: 11, color: "var(--muted2)", textTransform: "uppercase", letterSpacing: "0.06em", borderBottom: "1px solid var(--border)" }}>
+        <span>Set</span><span>Reps</span><span>Weight (kg)</span><span></span>
+      </div>
+
+      {exState.sets.map((s, setIdx) => {
+        const restSecs = parseRestSecs(exState.exercise.rest);
+        return (
+          <div key={s.id} style={{
+            display: "grid", gridTemplateColumns: "40px 1fr 1fr 100px",
+            gap: 8, padding: "10px 20px", alignItems: "center",
+            background: s.done ? "rgba(61,220,132,0.05)" : "transparent",
+            borderBottom: setIdx < exState.sets.length - 1 ? "1px solid var(--border)" : "none",
+          }}>
+            <span style={{ fontSize: 14, fontWeight: 700, color: s.done ? "var(--green)" : "var(--muted)" }}>
+              {s.done ? "✓" : setIdx + 1}
+            </span>
+            <input
+              type="number" placeholder={exState.exercise.reps.split("-")[0]}
+              value={s.reps}
+              onChange={(e) => onUpdateSet(exIdx, setIdx, "reps", e.target.value)}
+              disabled={s.done}
+              style={{ background: "var(--dark3)", border: "1px solid var(--border)", borderRadius: 6, padding: "8px 10px", color: "var(--text)", fontSize: 14, width: "100%", opacity: s.done ? 0.5 : 1 }}
+            />
+            <input
+              type="number"
+              placeholder={overload ? String(overload.suggestion) : "0"}
+              value={s.weight}
+              onChange={(e) => onUpdateSet(exIdx, setIdx, "weight", e.target.value)}
+              disabled={s.done}
+              style={{ background: "var(--dark3)", border: "1px solid var(--border)", borderRadius: 6, padding: "8px 10px", color: "var(--text)", fontSize: 14, width: "100%", opacity: s.done ? 0.5 : 1 }}
+            />
+            {s.done ? (
+              <span style={{ fontSize: 12, color: "var(--green)", textAlign: "center" }}>Logged</span>
+            ) : (
+              <button onClick={() => onCompleteSet(exIdx, setIdx, restSecs)}
+                style={{ background: "var(--gold)", border: "none", borderRadius: 6, padding: "8px", color: "var(--black)", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>
+                Done ✓
+              </button>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
 }
 
 function RatingDots({ value, onChange, color }: Readonly<{ value: number; onChange: (v: number) => void; color: string }>) {
@@ -78,6 +174,8 @@ export default function Workout() {
   const [finished, setFinished] = useState(false);
   const [readinessStep, setReadinessStep] = useState(false);
   const [readiness, setReadiness] = useState<{ sleep: number; soreness: number }>({ sleep: 0, soreness: 0 });
+  const [modalExercise, setModalExercise] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   const week = program?.schedule[0];
   const day = week?.days[dayIndex];
@@ -152,26 +250,70 @@ export default function Workout() {
 
   if (finished) {
     const xp = state.reduce((s, ex) => s + ex.sets.filter((set) => set.done).length * 10, 0);
+    const streak = calcStreak();
+    const topSet = state.flatMap((ex) =>
+      ex.sets.filter((s) => s.done && Number.parseFloat(s.weight) > 0).map((s) => ({ name: ex.exercise.name, weight: Number.parseFloat(s.weight), reps: s.reps }))
+    ).sort((a, b) => b.weight - a.weight)[0];
+
+    function copyCard() {
+      const text = [
+        "🔥 FITERO WORKOUT",
+        `${day?.focus ?? "Session"} · ${timer.fmt(timer.elapsed)} · ${completedSets} sets`,
+        topSet ? `💪 Best: ${topSet.name} ${topSet.weight}kg × ${topSet.reps}` : "",
+        streak > 1 ? `+${xp} XP · ${streak}-day streak` : `+${xp} XP`,
+        "",
+        "Train smarter at fitero.app",
+      ].filter(Boolean).join("\n");
+      navigator.clipboard.writeText(text).then(() => setCopied(true));
+      setTimeout(() => setCopied(false), 2000);
+    }
+
     return (
-      <div style={{ padding: "60px 40px", textAlign: "center", maxWidth: 500, margin: "0 auto" }}>
-        <div style={{ fontSize: 64, marginBottom: 24 }}>🏆</div>
-        <h1 style={{ fontSize: 56, fontWeight: 900, marginBottom: 8 }}>SESSION<br /><span style={{ color: "var(--gold)" }}>COMPLETE</span></h1>
-        <p style={{ color: "var(--muted)", marginBottom: 32, fontSize: 16 }}>
-          {day?.focus} · {timer.fmt(timer.elapsed)} · {completedSets} sets
-        </p>
-        <div style={{ display: "flex", justifyContent: "center", gap: 24, marginBottom: 40 }}>
-          <div className="card" style={{ padding: "20px 28px" }}>
-            <div style={{ fontSize: 32, fontFamily: "Barlow Condensed", fontWeight: 900, color: "var(--gold)" }}>+{xp}</div>
-            <div style={{ fontSize: 12, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.06em" }}>XP Earned</div>
-          </div>
-          <div className="card" style={{ padding: "20px 28px" }}>
-            <div style={{ fontSize: 32, fontFamily: "Barlow Condensed", fontWeight: 900 }}>{timer.fmt(timer.elapsed)}</div>
-            <div style={{ fontSize: 12, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Duration</div>
-          </div>
+      <div style={{ padding: "48px 40px", maxWidth: 500, margin: "0 auto" }}>
+        <div style={{ textAlign: "center", marginBottom: 32 }}>
+          <div style={{ fontSize: 56, marginBottom: 16 }}>🏆</div>
+          <h1 style={{ fontSize: 52, fontWeight: 900, marginBottom: 4 }}>SESSION<br /><span style={{ color: "var(--gold)" }}>COMPLETE</span></h1>
         </div>
-        <button className="btn-primary" style={{ width: "100%" }} onClick={() => nav("/app")}>
-          Back to Dashboard →
-        </button>
+
+        {/* Share card */}
+        <div style={{ background: "var(--dark2)", border: "1px solid var(--border)", borderRadius: 16, padding: "24px", marginBottom: 20, position: "relative", overflow: "hidden" }}>
+          <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: "var(--gold)" }} />
+          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.12em", color: "var(--gold)", marginBottom: 16 }}>FITERO</div>
+          <div style={{ fontFamily: "Barlow Condensed", fontWeight: 900, fontSize: 28, marginBottom: 4 }}>{day?.focus}</div>
+          <div style={{ fontSize: 13, color: "var(--muted)", marginBottom: 20 }}>
+            {timer.fmt(timer.elapsed)} · {completedSets} sets · +{xp} XP
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: topSet ? 16 : 0 }}>
+            {[
+              { label: "Duration", val: timer.fmt(timer.elapsed) },
+              { label: "Sets Done", val: String(completedSets) },
+              { label: "XP Earned", val: `+${xp}` },
+              { label: "Streak", val: `${streak} day${streak !== 1 ? "s" : ""}` },
+            ].map((s) => (
+              <div key={s.label} style={{ background: "var(--dark3)", borderRadius: 8, padding: "12px 14px" }}>
+                <div style={{ fontFamily: "Barlow Condensed", fontWeight: 800, fontSize: 22, color: "var(--gold)" }}>{s.val}</div>
+                <div style={{ fontSize: 11, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.06em", marginTop: 2 }}>{s.label}</div>
+              </div>
+            ))}
+          </div>
+          {topSet && (
+            <div style={{ background: "rgba(201,168,76,0.08)", border: "1px solid rgba(201,168,76,0.2)", borderRadius: 8, padding: "10px 14px", fontSize: 13 }}>
+              <span style={{ color: "var(--muted)" }}>Top set: </span>
+              <span style={{ fontWeight: 700 }}>{topSet.name}</span>
+              <span style={{ color: "var(--gold)", fontWeight: 700 }}> {topSet.weight}kg × {topSet.reps}</span>
+            </div>
+          )}
+        </div>
+
+        <div style={{ display: "flex", gap: 10, marginBottom: 12 }}>
+          <button onClick={copyCard}
+            style={{ flex: 1, padding: "12px", borderRadius: 10, border: "1px solid var(--border)", background: copied ? "rgba(61,220,132,0.1)" : "var(--dark2)", color: copied ? "var(--green)" : "var(--muted)", cursor: "pointer", fontSize: 14, fontWeight: 600, transition: "all 0.2s" }}>
+            {copied ? "✓ Copied!" : "Copy Summary"}
+          </button>
+          <button className="btn-primary" style={{ flex: 2, fontSize: 15 }} onClick={() => nav("/app")}>
+            Back to Dashboard →
+          </button>
+        </div>
       </div>
     );
   }
@@ -212,16 +354,15 @@ export default function Workout() {
           </div>
         </div>
 
-        {isLow && (
+        {ready && (isLow ? (
           <div style={{ background: "rgba(248,113,113,0.08)", border: "1px solid rgba(248,113,113,0.3)", borderRadius: 10, padding: "14px 18px", marginBottom: 16, fontSize: 13, color: "#f87171" }}>
             Low readiness detected — consider reducing weight by 10–15% and focusing on form today.
           </div>
-        )}
-        {ready && !isLow && (
+        ) : (
           <div style={{ background: "rgba(61,220,132,0.08)", border: "1px solid rgba(61,220,132,0.3)", borderRadius: 10, padding: "14px 18px", marginBottom: 16, fontSize: 13, color: "var(--green)" }}>
             You're good to go — push those PRs.
           </div>
-        )}
+        ))}
 
         <button className="btn-primary" style={{ width: "100%", fontSize: 18 }} onClick={confirmReadiness} disabled={!ready}>
           Start Session →
@@ -318,82 +459,23 @@ export default function Workout() {
 
       {/* Exercises */}
       <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-        {state.map((exState, exIdx) => {
-          const overload = getProgressiveSuggestion(exState.exercise.name, exState.exercise.reps);
-          return (
-            <div key={exState.exercise.name} className="card">
-              <div style={{ padding: "14px 20px", background: exState.exercise.fst7 ? "rgba(201,168,76,0.1)" : "var(--dark2)", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <span style={{ fontWeight: 700, fontSize: 16 }}>{exState.exercise.name}</span>
-                    {exState.exercise.fst7 && (
-                      <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 20, background: "var(--gold)", color: "var(--black)", letterSpacing: "0.06em" }}>FST-7</span>
-                    )}
-                  </div>
-                  {exState.exercise.notes && <div style={{ fontSize: 12, color: "var(--gold)", marginTop: 2 }}>{exState.exercise.notes}</div>}
-                  {overload ? (
-                    <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 3 }}>
-                      Last: <span style={{ color: "var(--text)" }}>{overload.lastAvgWeight}kg × {overload.lastAvgReps}</span>
-                      {" · "}Target: <span style={{ color: "var(--gold)", fontWeight: 700 }}>{overload.suggestion}kg</span>
-                    </div>
-                  ) : (
-                    <div style={{ fontSize: 11, color: "var(--muted2)", marginTop: 3 }}>First time — establish your baseline</div>
-                  )}
-                </div>
-                <div style={{ fontSize: 13, color: "var(--muted)" }}>{exState.exercise.muscleGroup}</div>
-              </div>
-
-              {/* Set header */}
-              <div style={{ display: "grid", gridTemplateColumns: "40px 1fr 1fr 100px", gap: 8, padding: "8px 20px", fontSize: 11, color: "var(--muted2)", textTransform: "uppercase", letterSpacing: "0.06em", borderBottom: "1px solid var(--border)" }}>
-                <span>Set</span><span>Reps</span><span>Weight (kg)</span><span></span>
-              </div>
-
-              {exState.sets.map((s, setIdx) => {
-                const restSecs = parseRestSecs(exState.exercise.rest);
-                return (
-                  <div key={s.id} style={{
-                    display: "grid", gridTemplateColumns: "40px 1fr 1fr 100px",
-                    gap: 8, padding: "10px 20px", alignItems: "center",
-                    background: s.done ? "rgba(61,220,132,0.05)" : "transparent",
-                    borderBottom: setIdx < exState.sets.length - 1 ? "1px solid var(--border)" : "none",
-                  }}>
-                    <span style={{ fontSize: 14, fontWeight: 700, color: s.done ? "var(--green)" : "var(--muted)" }}>
-                      {s.done ? "✓" : setIdx + 1}
-                    </span>
-                    <input
-                      type="number" placeholder={exState.exercise.reps.split("-")[0]}
-                      value={s.reps}
-                      onChange={(e) => updateSet(exIdx, setIdx, "reps", e.target.value)}
-                      disabled={s.done}
-                      style={{ background: "var(--dark3)", border: "1px solid var(--border)", borderRadius: 6, padding: "8px 10px", color: "var(--text)", fontSize: 14, width: "100%", opacity: s.done ? 0.5 : 1 }}
-                    />
-                    <input
-                      type="number"
-                      placeholder={overload ? String(overload.suggestion) : "0"}
-                      value={s.weight}
-                      onChange={(e) => updateSet(exIdx, setIdx, "weight", e.target.value)}
-                      disabled={s.done}
-                      style={{ background: "var(--dark3)", border: "1px solid var(--border)", borderRadius: 6, padding: "8px 10px", color: "var(--text)", fontSize: 14, width: "100%", opacity: s.done ? 0.5 : 1 }}
-                    />
-                    {s.done ? (
-                      <span style={{ fontSize: 12, color: "var(--green)", textAlign: "center" }}>Logged</span>
-                    ) : (
-                      <button onClick={() => completeSet(exIdx, setIdx, restSecs)}
-                        style={{ background: "var(--gold)", border: "none", borderRadius: 6, padding: "8px", color: "var(--black)", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>
-                        Done ✓
-                      </button>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          );
-        })}
+        {state.map((exState, exIdx) => (
+          <ActiveExerciseCard
+            key={exState.exercise.name}
+            exState={exState}
+            exIdx={exIdx}
+            onUpdateSet={updateSet}
+            onCompleteSet={completeSet}
+            onInfoClick={setModalExercise}
+          />
+        ))}
       </div>
 
       <button className="btn-primary" style={{ width: "100%", marginTop: 32, fontSize: 18 }} onClick={finishWorkout}>
         Finish Workout →
       </button>
+
+      {modalExercise && <ExerciseModal name={modalExercise} onClose={() => setModalExercise(null)} />}
     </div>
   );
 }
