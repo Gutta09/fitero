@@ -1,6 +1,15 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { store } from "../data/store.ts";
-import { searchFoods } from "../data/foods.ts";
+import { searchFoods, FOOD_CATEGORIES, FOOD_DB } from "../data/foods.ts";
+
+const CATEGORY_COLOR: Record<string, string> = {
+  Protein: "#4a9eff",
+  Carbs: "var(--gold)",
+  Fats: "var(--green)",
+  Vegetables: "#34d399",
+  Dairy: "#a78bfa",
+  Supplements: "#f87171",
+};
 import type { Food } from "../data/foods.ts";
 import type { NutritionLog } from "../data/store.ts";
 
@@ -24,10 +33,32 @@ export default function Nutrition() {
   const [grams, setGrams] = useState<Record<string, number>>({});
   const [editingGoals, setEditingGoals] = useState(false);
   const [goals, setGoals] = useState({ calories: profile.targetCalories, protein: profile.targetProtein, carbs: profile.targetCarbs, fat: profile.targetFat });
+  const searchRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
+        setResults([]);
+        setQuery("");
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const [browseCategory, setBrowseCategory] = useState<string | null>(null);
 
   function search(q: string) {
     setQuery(q);
+    setBrowseCategory(null);
     setResults(q.length >= 2 ? searchFoods(q) : []);
+  }
+
+  function browseByCategory(cat: string) {
+    const next = browseCategory === cat ? null : cat;
+    setBrowseCategory(next);
+    setQuery("");
+    setResults(next ? FOOD_DB.filter((f) => f.category === next) : []);
   }
 
   function addFood(food: Food) {
@@ -103,10 +134,10 @@ export default function Nutrition() {
             {(["calories", "protein", "carbs", "fat"] as const).map((k) => (
               <div key={k}>
                 <label style={{ fontSize: 12, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.06em", display: "block", marginBottom: 6 }}>
-                  {k}{k !== "calories" ? " (g)" : " (kcal)"}
+                  {k}{k === "calories" ? " (kcal)" : " (g)"}
                 </label>
                 <input type="number" value={goals[k]}
-                  onChange={(e) => setGoals((g) => ({ ...g, [k]: parseInt(e.target.value) || 0 }))}
+                  onChange={(e) => setGoals((g) => ({ ...g, [k]: Number.parseInt(e.target.value) || 0 }))}
                   style={{ width: "100%", background: "var(--dark3)", border: "1px solid var(--border)", borderRadius: 6, padding: "10px 12px", color: "var(--text)", fontSize: 16 }}
                 />
               </div>
@@ -165,10 +196,27 @@ export default function Nutrition() {
         ))}
       </div>
 
+      {/* Category filter chips */}
+      <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
+        {FOOD_CATEGORIES.map((cat) => (
+          <button key={cat} onClick={() => browseByCategory(cat)}
+            style={{
+              padding: "6px 14px", borderRadius: 20, border: "1px solid",
+              borderColor: browseCategory === cat ? (CATEGORY_COLOR[cat] ?? "var(--gold)") : "var(--border)",
+              background: browseCategory === cat ? `${(CATEGORY_COLOR[cat] ?? "var(--gold)")}22` : "transparent",
+              color: browseCategory === cat ? (CATEGORY_COLOR[cat] ?? "var(--gold)") : "var(--muted)",
+              fontSize: 12, fontWeight: 600, textTransform: "uppercase" as const,
+              letterSpacing: "0.06em", cursor: "pointer", transition: "all 0.15s",
+            }}>
+            {cat}
+          </button>
+        ))}
+      </div>
+
       {/* Food search */}
-      <div style={{ position: "relative", marginBottom: 24 }}>
+      <div ref={searchRef} style={{ position: "relative", marginBottom: 24 }}>
         <input
-          placeholder={`Search foods to add to ${MEALS[activeMeal]}…`}
+          placeholder={`Search or browse by category above — adding to ${MEALS[activeMeal]}`}
           value={query}
           onChange={(e) => search(e.target.value)}
           style={{ width: "100%", background: "var(--dark2)", border: "1px solid var(--border)", borderRadius: 10, padding: "14px 18px", color: "var(--text)", fontSize: 15, outline: "none" }}
@@ -176,19 +224,21 @@ export default function Nutrition() {
         {results.length > 0 && (
           <div style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, background: "var(--dark2)", border: "1px solid var(--border)", borderRadius: 10, zIndex: 20, overflow: "hidden" }}>
             {results.map((f) => (
-              <div key={f.id} style={{ padding: "12px 18px", cursor: "pointer", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = "var(--dark3)")}
-                onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-              >
+              <div key={f.id} style={{ padding: "12px 18px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center", background: "var(--dark2)" }}>
                 <div>
-                  <div style={{ fontWeight: 600, fontSize: 14 }}>{f.name}</div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <span style={{ fontWeight: 600, fontSize: 14 }}>{f.name}</span>
+                    <span style={{ fontSize: 10, fontWeight: 600, padding: "1px 6px", borderRadius: 10, background: `${(CATEGORY_COLOR[f.category] ?? "var(--gold)")}22`, color: CATEGORY_COLOR[f.category] ?? "var(--gold)", textTransform: "uppercase" as const, letterSpacing: "0.06em" }}>
+                      {f.category}
+                    </span>
+                  </div>
                   <div style={{ fontSize: 12, color: "var(--muted)" }}>{f.servingSize} · {f.calories} kcal · P:{f.protein}g C:{f.carbs}g F:{f.fat}g</div>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                   <input type="number" placeholder="100"
                     defaultValue={100}
                     onClick={(e) => e.stopPropagation()}
-                    onChange={(e) => setGrams((g) => ({ ...g, [f.id]: parseInt(e.target.value) || 100 }))}
+                    onChange={(e) => setGrams((g) => ({ ...g, [f.id]: Number.parseInt(e.target.value) || 100 }))}
                     style={{ width: 64, background: "var(--dark3)", border: "1px solid var(--border)", borderRadius: 6, padding: "6px 8px", color: "var(--text)", fontSize: 13, textAlign: "center" }}
                   />
                   <span style={{ fontSize: 12, color: "var(--muted)" }}>g</span>
@@ -200,10 +250,52 @@ export default function Nutrition() {
         )}
       </div>
 
+      {/* Macro gap quick fills */}
+      {(() => {
+        type MacroKey = "protein" | "carbs" | "fat";
+        const MACRO_KEYS: MacroKey[] = ["protein", "carbs", "fat"];
+        const gaps: Record<MacroKey, number> = {
+          protein: Math.max(0, goals.protein - Math.round(totals.protein)),
+          carbs: Math.max(0, goals.carbs - Math.round(totals.carbs)),
+          fat: Math.max(0, goals.fat - Math.round(totals.fat)),
+        };
+        const goalsForMacro: Record<MacroKey, number> = { protein: goals.protein, carbs: goals.carbs, fat: goals.fat };
+        const topMacro = [...MACRO_KEYS].sort((a, b) => (gaps[b] / goalsForMacro[b]) - (gaps[a] / goalsForMacro[a]))[0];
+        const pctGap = gaps[topMacro] / goalsForMacro[topMacro];
+        if (pctGap < 0.25) return null;
+        const suggestions = [...FOOD_DB]
+          .filter((f) => f[topMacro] > 0)
+          .sort((a, b) => (b[topMacro] / b.calories) - (a[topMacro] / a.calories))
+          .slice(0, 4);
+        const macroColor: Record<MacroKey, string> = { protein: "#4a9eff", carbs: "var(--gold)", fat: "var(--green)" };
+        return (
+          <div className="card" style={{ padding: "20px 24px", marginBottom: 20, border: `1px solid ${macroColor[topMacro]}44` }}>
+            <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: macroColor[topMacro], marginBottom: 10 }}>
+              Quick Fill — {gaps[topMacro]}g {topMacro} remaining
+            </div>
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+              {suggestions.map((f) => (
+                <div key={f.id} style={{ background: "var(--dark2)", border: "1px solid var(--border)", borderRadius: 8, padding: "10px 14px", minWidth: 140, flex: "1 1 140px" }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>{f.name}</div>
+                  <div style={{ fontSize: 11, color: macroColor[topMacro], fontWeight: 700 }}>
+                    {f[topMacro]}g {topMacro} / 100g
+                  </div>
+                  <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 2 }}>{f.calories} kcal · {f.servingSize}</div>
+                  <button onClick={() => { addFood(f); }}
+                    style={{ marginTop: 8, background: macroColor[topMacro], border: "none", borderRadius: 5, padding: "4px 10px", fontSize: 11, fontWeight: 700, color: "var(--black)", cursor: "pointer" }}>
+                    Add 100g
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Meal logs */}
       {log.meals.map((meal, mi) => (
         meal.foods.length > 0 && (
-          <div key={mi} className="card" style={{ marginBottom: 16 }}>
+          <div key={meal.name} className="card" style={{ marginBottom: 16 }}>
             <div style={{ padding: "12px 20px", background: "var(--dark2)", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <span style={{ fontFamily: "Barlow Condensed", fontWeight: 800, fontSize: 18 }}>{meal.name}</span>
               <span style={{ fontSize: 13, color: "var(--muted)" }}>
@@ -211,7 +303,7 @@ export default function Nutrition() {
               </span>
             </div>
             {meal.foods.map((f, fi) => (
-              <div key={fi} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 20px", borderBottom: fi < meal.foods.length - 1 ? "1px solid var(--border)" : "none", fontSize: 14 }}>
+              <div key={`${f.foodId}-${fi}`} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 20px", borderBottom: fi < meal.foods.length - 1 ? "1px solid var(--border)" : "none", fontSize: 14 }}>
                 <div>
                   <div style={{ fontWeight: 500 }}>{f.name}</div>
                   <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 2 }}>

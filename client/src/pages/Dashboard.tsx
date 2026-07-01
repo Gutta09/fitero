@@ -1,14 +1,42 @@
-import React from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { store } from "../data/store.ts";
 import { PROGRAMS } from "../data/programs.ts";
+
+const WATER_TARGET = 8;
+
+function streakMessage(streak: number): string {
+  if (streak === 0) return "Start your streak today!";
+  if (streak >= 7) return "On fire! Keep it up";
+  return "Building momentum…";
+}
+
+function weeklyMessage(done: number, goal: number): string {
+  if (done >= goal) return "Goal complete!";
+  const rem = goal - done;
+  return `${rem} session${rem === 1 ? "" : "s"} to go`;
+}
 
 export default function Dashboard() {
   const nav = useNavigate();
   const profile = store.getProfile();
   const logs = store.getWorkoutLogs().slice(0, 5);
-  const todayNutrition = store.getNutritionForDate(store.todayStr());
+  const todayKey = store.todayStr();
+  const todayNutrition = store.getNutritionForDate(todayKey);
   const activeProgram = PROGRAMS.find((p) => p.id === profile.activeProgramId);
+  const [water, setWater] = useState(() => store.getWaterToday(todayKey));
+
+  function addGlass() {
+    const next = Math.min(water + 1, WATER_TARGET + 4);
+    store.setWaterToday(todayKey, next);
+    setWater(next);
+  }
+
+  function removeGlass() {
+    const next = Math.max(water - 1, 0);
+    store.setWaterToday(todayKey, next);
+    setWater(next);
+  }
 
   const todayMacros = todayNutrition?.meals.reduce(
     (acc, meal) => {
@@ -36,7 +64,6 @@ export default function Dashboard() {
     const dates = new Set(allLogs.map((l) => l.date.slice(0, 10)));
     let count = 0;
     const cursor = new Date();
-    // Allow streak to count if today hasn't been logged yet (check from yesterday)
     if (!dates.has(cursor.toISOString().slice(0, 10))) {
       cursor.setDate(cursor.getDate() - 1);
     }
@@ -52,24 +79,28 @@ export default function Dashboard() {
   const ringPct = Math.min(1, weeklyDone / weeklyGoal);
   const RING_R = 28;
   const RING_CIRC = 2 * Math.PI * RING_R;
+  const ringColor = ringPct >= 1 ? "var(--green)" : "var(--gold)";
+  const barColor = ringPct >= 1 ? "var(--green)" : "var(--gold)";
 
-  const today = new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
+  const displayDate = new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
+  const waterPct = Math.min(1, water / WATER_TARGET);
+  const waterColor = waterPct >= 1 ? "var(--green)" : "#4a9eff";
 
   return (
     <div style={{ padding: "32px 40px", maxWidth: 1000, margin: "0 auto" }}>
       {/* Header */}
       <div style={{ marginBottom: 36 }}>
-        <div style={{ fontSize: 13, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>{today}</div>
+        <div style={{ fontSize: 13, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>{displayDate}</div>
         <h1 style={{ fontSize: 42, fontWeight: 900 }}>
           GM, <span style={{ color: "var(--gold)" }}>{profile.name}</span>
         </h1>
       </div>
 
-      {/* Streak + Weekly Ring hero row */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 20 }}>
+      {/* Streak + Weekly Ring + Water row */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, marginBottom: 20 }}>
         {/* Streak card */}
         <div className="card" style={{ padding: "24px 28px", display: "flex", alignItems: "center", gap: 20 }}>
-          <div style={{ fontSize: 48, lineHeight: 1 }}>🔥</div>
+          <div style={{ fontSize: 44, lineHeight: 1 }}>🔥</div>
           <div>
             <div style={{ fontSize: 48, fontFamily: "Barlow Condensed", fontWeight: 900, color: "var(--gold)", lineHeight: 1 }}>
               {streak}
@@ -78,10 +109,11 @@ export default function Dashboard() {
               Day Streak
             </div>
             <div style={{ fontSize: 12, color: "var(--green)", marginTop: 4 }}>
-              {streak === 0 ? "Start your streak today!" : streak >= 7 ? "On fire! Keep it up 💪" : "Building momentum…"}
+              {streakMessage(streak)}
             </div>
           </div>
         </div>
+
         {/* Weekly goal ring */}
         <div className="card" style={{ padding: "24px 28px", display: "flex", alignItems: "center", gap: 20 }}>
           <svg width={80} height={80} viewBox="0 0 80 80">
@@ -89,7 +121,7 @@ export default function Dashboard() {
             <circle
               cx={40} cy={40} r={RING_R}
               fill="none"
-              stroke={ringPct >= 1 ? "var(--green)" : "var(--gold)"}
+              stroke={ringColor}
               strokeWidth={6}
               strokeDasharray={RING_CIRC}
               strokeDashoffset={RING_CIRC * (1 - ringPct)}
@@ -97,17 +129,43 @@ export default function Dashboard() {
               transform="rotate(-90 40 40)"
               style={{ transition: "stroke-dashoffset 0.6s ease" }}
             />
-            <text x={40} y={44} textAnchor="middle" fill="var(--cream)" fontSize={16} fontFamily="Barlow Condensed" fontWeight={800}>
+            <text x={40} y={44} textAnchor="middle" fill="var(--text)" fontSize={16} fontFamily="Barlow Condensed" fontWeight={800}>
               {weeklyDone}/{weeklyGoal}
             </text>
           </svg>
           <div>
-            <div style={{ fontSize: 18, fontWeight: 700, color: "var(--cream)" }}>Weekly Goal</div>
+            <div style={{ fontSize: 18, fontWeight: 700, color: "var(--text)" }}>Weekly Goal</div>
             <div style={{ fontSize: 13, color: "var(--muted)", marginTop: 4 }}>
-              {weeklyDone >= weeklyGoal ? "🎉 Goal complete!" : `${weeklyGoal - weeklyDone} session${weeklyGoal - weeklyDone !== 1 ? "s" : ""} to go`}
+              {weeklyMessage(weeklyDone, weeklyGoal)}
             </div>
             <div style={{ marginTop: 10, height: 4, background: "var(--border)", borderRadius: 2, width: 120, overflow: "hidden" }}>
-              <div style={{ height: "100%", width: `${ringPct * 100}%`, background: ringPct >= 1 ? "var(--green)" : "var(--gold)", borderRadius: 2, transition: "width 0.6s ease" }} />
+              <div style={{ height: "100%", width: `${ringPct * 100}%`, background: barColor, borderRadius: 2, transition: "width 0.6s ease" }} />
+            </div>
+          </div>
+        </div>
+
+        {/* Water tracker */}
+        <div className="card" style={{ padding: "24px 28px", display: "flex", alignItems: "center", gap: 20 }}>
+          <div style={{ fontSize: 44, lineHeight: 1 }}>💧</div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 48, fontFamily: "Barlow Condensed", fontWeight: 900, color: waterColor, lineHeight: 1 }}>
+              {water}
+            </div>
+            <div style={{ fontSize: 12, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.1em", marginTop: 4 }}>
+              / {WATER_TARGET} glasses
+            </div>
+            <div style={{ marginTop: 10, height: 4, background: "var(--border)", borderRadius: 2, overflow: "hidden" }}>
+              <div style={{ height: "100%", width: `${waterPct * 100}%`, background: waterColor, borderRadius: 2, transition: "width 0.3s ease" }} />
+            </div>
+            <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+              <button onClick={removeGlass}
+                style={{ background: "var(--dark3)", border: "1px solid var(--border)", borderRadius: 6, padding: "4px 12px", color: "var(--muted)", cursor: "pointer", fontSize: 16, lineHeight: 1 }}>
+                −
+              </button>
+              <button onClick={addGlass}
+                style={{ background: waterColor, border: "none", borderRadius: 6, padding: "4px 12px", color: "var(--black)", cursor: "pointer", fontSize: 16, fontWeight: 700, lineHeight: 1, flex: 1 }}>
+                + Glass
+              </button>
             </div>
           </div>
         </div>
@@ -116,10 +174,10 @@ export default function Dashboard() {
       {/* Quick stats */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16, marginBottom: 32 }}>
         {[
-          { label: "Sessions this week", value: thisWeek.length, max: profile.activeProgramId ? (activeProgram?.daysPerWeek ?? 0) : null },
-          { label: "Total XP", value: `${profile.xp}`, suffix: " xp" },
-          { label: "Calories today", value: Math.round(todayMacros.calories), max: profile.targetCalories },
-          { label: "Protein today", value: `${Math.round(todayMacros.protein)}g`, max: null },
+          { label: "Sessions this week", value: thisWeek.length, max: profile.activeProgramId ? (activeProgram?.daysPerWeek ?? 0) : null, suffix: "" },
+          { label: "Total XP", value: `${profile.xp}`, max: null, suffix: " xp" },
+          { label: "Calories today", value: Math.round(todayMacros.calories), max: profile.targetCalories, suffix: "" },
+          { label: "Protein today", value: `${Math.round(todayMacros.protein)}g`, max: null, suffix: "" },
         ].map((s) => (
           <div key={s.label} className="card" style={{ padding: "20px 22px" }}>
             <div style={{ fontSize: 28, fontFamily: "Barlow Condensed", fontWeight: 800, color: "var(--gold)" }}>
@@ -195,7 +253,10 @@ export default function Dashboard() {
           </div>
           {logs.length === 0 ? (
             <div style={{ textAlign: "center", padding: "24px 0", color: "var(--muted)", fontSize: 14 }}>
-              No sessions logged yet. <button style={{ background: "none", border: "none", color: "var(--gold)", cursor: "pointer", fontSize: 14 }} onClick={() => nav("/app/workout")}>Start your first →</button>
+              No sessions logged yet.{" "}
+              <button style={{ background: "none", border: "none", color: "var(--gold)", cursor: "pointer", fontSize: 14 }} onClick={() => nav("/app/workout")}>
+                Start your first →
+              </button>
             </div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>

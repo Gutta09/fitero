@@ -58,14 +58,14 @@ export default function Landing() {
         backdropFilter: "blur(12px)",
         borderBottom: "1px solid var(--border)",
       }}>
-        <span style={{ fontFamily: "Barlow Condensed", fontWeight: 900, fontSize: 24, letterSpacing: "0.12em", textTransform: "uppercase" }}>
-          STNDRD
+        <span style={{ fontFamily: "Barlow Condensed", fontWeight: 900, fontSize: 26, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--gold)" }}>
+          FITERO
         </span>
         <div style={{ display: "flex", gap: 32, alignItems: "center" }}>
           {["Programs", "Features", "Pricing"].map((l) => (
             <a key={l} href={`#${l.toLowerCase()}`} style={{ fontSize: 13, fontWeight: 500, color: "var(--muted)", letterSpacing: "0.05em", textTransform: "uppercase" }}>{l}</a>
           ))}
-          <button className="btn-primary" style={{ padding: "10px 22px", fontSize: 14 }} onClick={() => nav("/app")}>
+          <button className="btn-primary" style={{ padding: "10px 22px", fontSize: 14 }} onClick={() => nav("/onboarding")}>
             Start Free Trial
           </button>
         </div>
@@ -78,18 +78,18 @@ export default function Landing() {
         padding: "120px 24px 80px",
         background: "radial-gradient(ellipse 80% 60% at 50% 0%, rgba(201,168,76,0.12) 0%, transparent 70%)",
       }}>
-        <div className="tag" style={{ marginBottom: 24 }}>FST-7 — Fascia Stretch Training</div>
+        <div className="tag" style={{ marginBottom: 24 }}>Your Journey. Your Progress. Fitero.</div>
         <h1 style={{ fontSize: "clamp(56px, 10vw, 120px)", fontWeight: 900, lineHeight: 0.95, marginBottom: 32, maxWidth: 900 }}>
           STOP GUESSING<br />
           <span style={{ color: "var(--gold)" }}>YOUR NEXT</span><br />
           WORKOUT
         </h1>
         <p style={{ fontSize: 20, color: "var(--muted)", maxWidth: 540, lineHeight: 1.6, marginBottom: 48 }}>
-          CBum's exact programs. HD form videos. Nutrition tracking. AI coaching.
-          Everything you need to set the standard.
+          Science-based programs. Smart nutrition tracking. AI coaching.
+          Everything you need to train with purpose.
         </p>
         <div style={{ display: "flex", gap: 16, flexWrap: "wrap", justifyContent: "center" }}>
-          <button className="btn-primary" style={{ fontSize: 20, padding: "16px 40px" }} onClick={() => nav("/app")}>
+          <button className="btn-primary" style={{ fontSize: 20, padding: "16px 40px" }} onClick={() => nav("/onboarding")}>
             Start Your Journey →
           </button>
           <button className="btn-ghost" onClick={() => nav("/app/programs")}>
@@ -97,7 +97,7 @@ export default function Landing() {
           </button>
         </div>
         <div style={{ marginTop: 64, display: "flex", gap: 48, color: "var(--muted)", fontSize: 14 }}>
-          {[["5", "Programs"], ["FST-7", "Methodology"], ["7", "Pump sets/session"], ["4.5★", "Rating"]].map(([v, l]) => (
+          {[["6", "Programs"], ["4", "Methodologies"], ["60+", "Foods tracked"], ["4.8★", "Rating"]].map(([v, l]) => (
             <div key={l} style={{ textAlign: "center" }}>
               <div style={{ fontFamily: "Barlow Condensed", fontWeight: 800, fontSize: 28, color: "var(--gold)", letterSpacing: "0.02em" }}>{v}</div>
               <div style={{ textTransform: "uppercase", letterSpacing: "0.08em", fontSize: 11 }}>{l}</div>
@@ -111,7 +111,7 @@ export default function Landing() {
         <div style={{ maxWidth: 1100, margin: "0 auto" }}>
           <div className="section-label" style={{ textAlign: "center" }}>Everything you need</div>
           <h2 style={{ fontSize: "clamp(40px, 6vw, 72px)", fontWeight: 900, textAlign: "center", marginBottom: 64 }}>
-            SET THE <span style={{ color: "var(--gold)" }}>STANDARD</span>
+            BUILT FOR <span style={{ color: "var(--gold)" }}>RESULTS</span>
           </h2>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 24 }}>
             {FEATURES.map((f) => (
@@ -128,18 +128,18 @@ export default function Landing() {
       {/* PROGRAMS */}
       <section id="programs" style={{ padding: "100px 48px", background: "var(--dark)" }}>
         <div style={{ maxWidth: 1100, margin: "0 auto" }}>
-          <div className="section-label" style={{ textAlign: "center" }}>FST-7 Based</div>
+          <div className="section-label" style={{ textAlign: "center" }}>6 Proven Methodologies</div>
           <h2 style={{ fontSize: "clamp(40px, 6vw, 72px)", fontWeight: 900, textAlign: "center", marginBottom: 64 }}>
             CHOOSE YOUR <span style={{ color: "var(--gold)" }}>PROGRAM</span>
           </h2>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 20 }}>
             {PROGRAMS.map((p) => (
-              <div key={p.id} className="card" style={{ cursor: "pointer", transition: "border-color 0.2s", borderColor: "var(--border)" }}
-                onClick={() => nav(`/app/programs/${p.id}`)}
+              <button key={p.id} className="card" onClick={() => nav(`/app/programs/${p.id}`)}
+                style={{ cursor: "pointer", transition: "border-color 0.2s", borderColor: "var(--border)", textAlign: "left", background: "var(--dark)", width: "100%", padding: 0 }}
                 onMouseEnter={(e) => (e.currentTarget.style.borderColor = "var(--gold)")}
                 onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--border)")}
               >
-                <div style={{ height: 6, background: "var(--gold)", opacity: 0.7 }} />
+                <div style={{ height: 6, background: "var(--gold)", opacity: 0.7, borderRadius: "8px 8px 0 0" }} />
                 <div style={{ padding: "20px 22px 24px" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
                     <span style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--gold)" }}>
@@ -157,7 +157,7 @@ export default function Landing() {
                     ))}
                   </div>
                 </div>
-              </div>
+              </button>
             ))}
           </div>
           <div style={{ textAlign: "center", marginTop: 40 }}>
@@ -222,10 +222,12 @@ export default function Landing() {
 
       {/* FOOTER */}
       <footer style={{ padding: "48px", borderTop: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center", color: "var(--muted)", fontSize: 13 }}>
-        <span style={{ fontFamily: "Barlow Condensed", fontWeight: 900, fontSize: 20, letterSpacing: "0.12em", color: "var(--text)" }}>STNDRD</span>
-        <span>© 2024 STNDRD App LLC. All rights reserved.</span>
+        <span style={{ fontFamily: "Barlow Condensed", fontWeight: 900, fontSize: 20, letterSpacing: "0.12em", color: "var(--text)" }}>FITERO</span>
+        <span>© 2025 Fitero. All rights reserved.</span>
         <div style={{ display: "flex", gap: 24 }}>
-          {["Terms", "Privacy", "Support"].map((l) => <a key={l} href="#" style={{ color: "var(--muted)" }}>{l}</a>)}
+          {["Terms", "Privacy", "Support"].map((l) => (
+            <button key={l} style={{ background: "none", border: "none", color: "var(--muted)", cursor: "pointer", fontSize: 13, padding: 0 }}>{l}</button>
+          ))}
         </div>
       </footer>
     </div>

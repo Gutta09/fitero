@@ -29,6 +29,13 @@ export type BodyMeasurement = {
 
 export type UserProfile = {
   name: string;
+  gender: "male" | "female" | null;
+  age: number | null;
+  heightCm: number | null;
+  weightKg: number | null;
+  goal: "muscle" | "fat_loss" | "strength" | "tone" | null;
+  level: "Beginner" | "Intermediate" | "Advanced" | null;
+  onboarded: boolean;
   activeProgramId: string | null;
   activeWeek: number;
   targetCalories: number;
@@ -39,7 +46,14 @@ export type UserProfile = {
 };
 
 const DEFAULT_PROFILE: UserProfile = {
-  name: "Athlete",
+  name: "",
+  gender: null,
+  age: null,
+  heightCm: null,
+  weightKg: null,
+  goal: null,
+  level: null,
+  onboarded: false,
   activeProgramId: null,
   activeWeek: 1,
   targetCalories: 2500,
@@ -96,6 +110,22 @@ export const store = {
     else ms.unshift(m);
     set("stndrd_measurements", ms);
   },
+
+  // Returns sets from the last time this exercise was logged (for progressive overload)
+  getLastExerciseData: (exerciseName: string): { reps: number; weight: number }[] | null => {
+    const logs = get<WorkoutLog[]>("stndrd_workouts", []);
+    for (const log of logs) {
+      const ex = log.exercises.find((e) => e.name === exerciseName);
+      if (ex && ex.sets.length > 0) return ex.sets;
+    }
+    return null;
+  },
+
+  getWaterToday: (date: string) => get<number>(`stndrd_water_${date}`, 0),
+  setWaterToday: (date: string, glasses: number) => set(`stndrd_water_${date}`, glasses),
+
+  getReadiness: (date: string) => get<{ sleep: number; soreness: number } | null>(`stndrd_readiness_${date}`, null),
+  saveReadiness: (date: string, data: { sleep: number; soreness: number }) => set(`stndrd_readiness_${date}`, data),
 
   todayStr: () => new Date().toISOString().slice(0, 10),
 };

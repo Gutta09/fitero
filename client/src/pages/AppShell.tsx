@@ -42,7 +42,7 @@ export default function AppShell() {
         }}>
           {!collapsed && (
             <span style={{ fontFamily: "Barlow Condensed", fontWeight: 900, fontSize: 22, letterSpacing: "0.12em", color: "var(--gold)", cursor: "pointer" }} onClick={() => nav("/")}>
-              STNDRD
+              FITERO
             </span>
           )}
           <button onClick={() => setCollapsed(!collapsed)} style={{ background: "none", border: "none", color: "var(--muted)", fontSize: 18, padding: 4, lineHeight: 1 }}>

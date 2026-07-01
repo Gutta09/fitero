@@ -19,7 +19,10 @@ const CHART_TOOLTIP_STYLE = {
 
 export default function Progress() {
   const logs = store.getWorkoutLogs();
-  const measurements = store.getMeasurements().slice(0, 30).reverse();
+  const [savedMeasurements, setSavedMeasurements] = useState<BodyMeasurement[]>(() =>
+    store.getMeasurements().slice(0, 30).reverse()
+  );
+  const measurements = savedMeasurements;
   const [newMeasure, setNewMeasure] = useState<Partial<BodyMeasurement>>({ date: store.todayStr() });
   const [showForm, setShowForm] = useState(false);
   const [activeMetric, setActiveMetric] = useState<keyof BodyMeasurement>("weight");
@@ -27,9 +30,9 @@ export default function Progress() {
   function saveMeasurement() {
     if (!newMeasure.date) return;
     store.addMeasurement(newMeasure as BodyMeasurement);
+    setSavedMeasurements(store.getMeasurements().slice(0, 30).reverse());
     setNewMeasure({ date: store.todayStr() });
     setShowForm(false);
-    window.location.reload();
   }
 
   // Weekly session counts
