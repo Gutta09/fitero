@@ -1,7 +1,35 @@
 import React, { useState } from "react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart, Bar } from "recharts";
 import { store } from "../data/store.ts";
-import type { BodyMeasurement } from "../data/store.ts";
+import type { BodyMeasurement, WorkoutLog } from "../data/store.ts";
+
+type StallInfo = { name: string; recentWeight: number; sessions: number };
+
+function collectExerciseHistory(logs: WorkoutLog[]): Record<string, number[]> {
+  const history: Record<string, number[]> = {};
+  for (const log of logs) {
+    for (const ex of log.exercises) {
+      const maxW = ex.sets.reduce((m, s) => Math.max(m, s.weight), 0);
+      if (maxW > 0) {
+        if (!history[ex.name]) history[ex.name] = [];
+        if (history[ex.name].length < 5) history[ex.name].push(maxW);
+      }
+    }
+  }
+  return history;
+}
+
+function computeStalledLifts(logs: WorkoutLog[]): StallInfo[] {
+  const history = collectExerciseHistory(logs);
+  const result: StallInfo[] = [];
+  for (const [name, weights] of Object.entries(history)) {
+    if (weights.length < 3) continue;
+    if (weights[0] <= Math.max(...weights.slice(1))) {
+      result.push({ name, recentWeight: weights[0], sessions: weights.length });
+    }
+  }
+  return result.slice(0, 5);
+}
 
 const MEASUREMENT_FIELDS: { key: keyof BodyMeasurement; label: string; unit: string }[] = [
   { key: "weight", label: "Body Weight", unit: "kg" },
@@ -71,6 +99,8 @@ export default function Progress() {
     return (Date.now() - d.getTime()) / 86400000 <= 7;
   }).length;
 
+  const stalledLifts = computeStalledLifts(logs);
+
   return (
     <div style={{ padding: "32px 40px" }}>
       <h1 style={{ fontSize: 52, fontWeight: 900, marginBottom: 32 }}>PROGRESS</h1>
@@ -89,6 +119,25 @@ export default function Progress() {
           </div>
         ))}
       </div>
+
+      {stalledLifts.length > 0 && (
+        <div className="card" style={{ padding: "24px", marginBottom: 24, border: "1px solid rgba(248,113,113,0.3)" }}>
+          <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "#f87171", marginBottom: 10 }}>
+            Stall Detected — {stalledLifts.length} lift{stalledLifts.length === 1 ? "" : "s"} with no progression
+          </div>
+          <p style={{ fontSize: 13, color: "var(--muted)", marginBottom: 14, lineHeight: 1.5 }}>
+            No weight increase across the last 3+ sessions. Consider a 10–15% deload, a rep-range shift, or ask your AI coach.
+          </p>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {stalledLifts.map((s) => (
+              <div key={s.name} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 14px", background: "rgba(248,113,113,0.06)", borderRadius: 8 }}>
+                <span style={{ fontWeight: 600, fontSize: 14 }}>{s.name}</span>
+                <span style={{ fontSize: 13, color: "#f87171" }}>{s.recentWeight}kg · {s.sessions} sessions stalled</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 24, marginBottom: 24 }}>
         {/* Weekly sessions chart */}

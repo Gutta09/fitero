@@ -77,43 +77,41 @@ function set<T>(key: string, value: T) {
 }
 
 export const store = {
-  getProfile: () => get<UserProfile>("stndrd_profile", DEFAULT_PROFILE),
-  saveProfile: (p: UserProfile) => set("stndrd_profile", p),
+  getProfile: () => get<UserProfile>("fitero_profile", DEFAULT_PROFILE),
+  saveProfile: (p: UserProfile) => set("fitero_profile", p),
 
-  getWorkoutLogs: () => get<WorkoutLog[]>("stndrd_workouts", []),
+  getWorkoutLogs: () => get<WorkoutLog[]>("fitero_workouts", []),
   addWorkoutLog: (log: WorkoutLog) => {
     const logs = store.getWorkoutLogs();
     logs.unshift(log);
-    set("stndrd_workouts", logs);
-    // award XP
+    set("fitero_workouts", logs);
     const profile = store.getProfile();
     profile.xp += log.xp;
     store.saveProfile(profile);
   },
 
-  getNutritionLogs: () => get<NutritionLog[]>("stndrd_nutrition", []),
+  getNutritionLogs: () => get<NutritionLog[]>("fitero_nutrition", []),
   getNutritionForDate: (date: string) =>
-    get<NutritionLog[]>("stndrd_nutrition", []).find((l) => l.date === date) ?? null,
+    get<NutritionLog[]>("fitero_nutrition", []).find((l) => l.date === date) ?? null,
   saveNutritionLog: (log: NutritionLog) => {
-    const logs = get<NutritionLog[]>("stndrd_nutrition", []);
+    const logs = get<NutritionLog[]>("fitero_nutrition", []);
     const idx = logs.findIndex((l) => l.date === log.date);
     if (idx >= 0) logs[idx] = log;
     else logs.unshift(log);
-    set("stndrd_nutrition", logs);
+    set("fitero_nutrition", logs);
   },
 
-  getMeasurements: () => get<BodyMeasurement[]>("stndrd_measurements", []),
+  getMeasurements: () => get<BodyMeasurement[]>("fitero_measurements", []),
   addMeasurement: (m: BodyMeasurement) => {
     const ms = store.getMeasurements();
     const idx = ms.findIndex((x) => x.date === m.date);
     if (idx >= 0) ms[idx] = m;
     else ms.unshift(m);
-    set("stndrd_measurements", ms);
+    set("fitero_measurements", ms);
   },
 
-  // Returns sets from the last time this exercise was logged (for progressive overload)
   getLastExerciseData: (exerciseName: string): { reps: number; weight: number }[] | null => {
-    const logs = get<WorkoutLog[]>("stndrd_workouts", []);
+    const logs = get<WorkoutLog[]>("fitero_workouts", []);
     for (const log of logs) {
       const ex = log.exercises.find((e) => e.name === exerciseName);
       if (ex && ex.sets.length > 0) return ex.sets;
@@ -121,11 +119,11 @@ export const store = {
     return null;
   },
 
-  getWaterToday: (date: string) => get<number>(`stndrd_water_${date}`, 0),
-  setWaterToday: (date: string, glasses: number) => set(`stndrd_water_${date}`, glasses),
+  getWaterToday: (date: string) => get<number>(`fitero_water_${date}`, 0),
+  setWaterToday: (date: string, glasses: number) => set(`fitero_water_${date}`, glasses),
 
-  getReadiness: (date: string) => get<{ sleep: number; soreness: number } | null>(`stndrd_readiness_${date}`, null),
-  saveReadiness: (date: string, data: { sleep: number; soreness: number }) => set(`stndrd_readiness_${date}`, data),
+  getReadiness: (date: string) => get<{ sleep: number; soreness: number } | null>(`fitero_readiness_${date}`, null),
+  saveReadiness: (date: string, data: { sleep: number; soreness: number }) => set(`fitero_readiness_${date}`, data),
 
   todayStr: () => new Date().toISOString().slice(0, 10),
 };

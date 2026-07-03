@@ -187,7 +187,7 @@ export default function Workout() {
       const partial = state.map(serializeExercise).filter((ex) => ex.sets.length > 0);
       if (partial.length > 0) {
         localStorage.setItem(
-          "stndrd_workout_autosave",
+          "fitero_workout_autosave",
           JSON.stringify({ date: today, focus: day?.focus, exercises: partial, elapsed: timer.elapsed })
         );
       }
@@ -209,7 +209,7 @@ export default function Workout() {
     timer.start();
     setStarted(true);
     setReadinessStep(false);
-    localStorage.removeItem("stndrd_workout_autosave");
+    localStorage.removeItem("fitero_workout_autosave");
   }
 
   function confirmReadiness() {
@@ -231,7 +231,7 @@ export default function Workout() {
 
   function finishWorkout() {
     timer.stop();
-    localStorage.removeItem("stndrd_workout_autosave");
+    localStorage.removeItem("fitero_workout_autosave");
     const xp = state.reduce((sum, ex) => sum + ex.sets.filter((s) => s.done).length * 10, 0);
     store.addWorkoutLog({
       id: `${Date.now()}`,

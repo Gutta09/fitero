@@ -1,13 +1,54 @@
 import React, { useState, useRef, useEffect } from "react";
+import { store } from "../data/store.ts";
+import { PROGRAMS } from "../data/programs.ts";
 
 type Message = { role: "user" | "assistant"; content: string };
+
+function buildTrainingContext() {
+  const profile = store.getProfile();
+  const activeProgram = PROGRAMS.find((p) => p.id === profile.activeProgramId);
+  return {
+    user: {
+      name: profile.name,
+      goal: profile.goal,
+      level: profile.level,
+      weightKg: profile.weightKg,
+      activeProgramId: profile.activeProgramId,
+      activeProgramName: activeProgram?.name ?? null,
+      activeWeek: profile.activeWeek,
+      targetCalories: profile.targetCalories,
+      targetProtein: profile.targetProtein,
+      xp: profile.xp,
+    },
+    recentWorkouts: store.getWorkoutLogs().slice(0, 7).map((log) => ({
+      date: log.date,
+      focus: log.focus,
+      durationMin: Math.round(log.durationSec / 60),
+      exercises: log.exercises.map((ex) => ({
+        name: ex.name,
+        sets: ex.sets.filter((s) => s.reps > 0 || s.weight > 0),
+      })),
+    })),
+    todayNutrition: (() => {
+      const n = store.getNutritionForDate(store.todayStr());
+      if (!n) return null;
+      return n.meals.reduce(
+        (acc, meal) => {
+          meal.foods.forEach((f) => { acc.calories += f.calories; acc.protein += f.protein; });
+          return acc;
+        },
+        { calories: 0, protein: 0 }
+      );
+    })(),
+  };
+}
 
 export default function Coach() {
   const [messages, setMessages] = useState<Message[]>([
     {
       role: "assistant",
       content:
-        "What's up. I'm your AI coach — tell me your goal, how training's been going, or ask me anything about your program. I'll adapt your plan if you need it.",
+        "What's up. I'm your AI coach — I can see your recent sessions and logged weights. Tell me how training's been going, or ask me to adjust your plan.",
     },
   ]);
   const [input, setInput] = useState("");
@@ -29,7 +70,7 @@ export default function Coach() {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: text }),
+        body: JSON.stringify({ message: text, context: buildTrainingContext() }),
       });
       const data = (await res.json()) as { reply?: string; error?: string };
       setMessages((prev) => [
@@ -49,7 +90,7 @@ export default function Coach() {
       <div style={{ padding: "28px 32px 0" }}>
         <h1 style={{ fontSize: 52, fontWeight: 900, marginBottom: 4 }}>AI COACH</h1>
         <p style={{ color: "var(--muted)", marginBottom: 24 }}>
-          Adapts your plan based on your progress. Powered by Claude.
+          Reads your logged sessions and adapts your plan. Powered by Claude.
         </p>
       </div>
 
@@ -80,10 +121,10 @@ export default function Coach() {
       {messages.length === 1 && (
         <div style={{ padding: "0 32px 12px", display: "flex", gap: 10, flexWrap: "wrap" }}>
           {[
-            "Create me a 4-day muscle-building plan",
-            "I missed 3 sessions this week, adjust my plan",
-            "What should I eat to bulk?",
-            "My bench is stuck at 100kg — what's next?",
+            "How am I doing this week?",
+            "My bench is stuck — what should I do?",
+            "I missed 3 sessions, adjust my plan",
+            "Build me a new program from scratch",
           ].map((p) => (
             <button key={p}
               onClick={() => { setInput(p); }}

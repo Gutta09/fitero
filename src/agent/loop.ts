@@ -9,7 +9,8 @@ const MODEL = "claude-sonnet-4-6";
 
 export async function runAgent(
   userMessage: string,
-  history: Message[] = []
+  history: Message[] = [],
+  trainingContext?: object
 ): Promise<{ reply: string; history: Message[] }> {
   const messages: Message[] = [
     ...history,
@@ -22,11 +23,15 @@ export async function runAgent(
     input_schema: input_schema as Anthropic.Tool["input_schema"],
   }));
 
+  const contextBlock = trainingContext
+    ? `\n\n## Live Training Data (from user's app)\n\`\`\`json\n${JSON.stringify(trainingContext, null, 2)}\n\`\`\``
+    : "";
+
   while (true) {
     const response = await anthropic.messages.create({
       model: MODEL,
       max_tokens: 2048,
-      system: systemPrompt,
+      system: systemPrompt + contextBlock,
       tools: toolDefs,
       messages,
     });

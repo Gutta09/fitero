@@ -12,14 +12,14 @@ app.use(express.json());
 let conversationHistory: Message[] = [];
 
 app.post("/api/chat", async (req, res) => {
-  const { message } = req.body as { message?: string };
+  const { message, context } = req.body as { message?: string; context?: object };
   if (!message?.trim()) {
     res.status(400).json({ error: "message is required" });
     return;
   }
 
   try {
-    const { reply, history } = await runAgent(message, conversationHistory);
+    const { reply, history } = await runAgent(message, conversationHistory, context);
     conversationHistory = history;
     res.json({ reply });
   } catch (err) {
