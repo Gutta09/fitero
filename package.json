@@ -8,7 +8,8 @@
     "dev": "concurrently \"tsx watch src/server.ts\" \"npm run dev --prefix client\"",
     "terminal": "tsx src/index.ts",
     "build": "tsc",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.37.0",
@@ -28,6 +29,7 @@
     "@types/node": "^22.0.0",
     "concurrently": "^10.0.3",
     "tsx": "^4.19.0",
-    "typescript": "^5.5.0"
+    "typescript": "^5.5.0",
+    "vitest": "^4.1.10"
   }
 }

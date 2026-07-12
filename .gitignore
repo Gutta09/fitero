@@ -5,3 +5,9 @@ dist/
 .DS_Store
 *.db
 fitero.db
+fitero.db-shm
+fitero.db-wal
+.claude/
+google-credentials.json
+.calendar-tokens.json
+coverage/

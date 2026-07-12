@@ -2,13 +2,16 @@ import "dotenv/config";
 import express from "express";
 import cors from "cors";
 import { runAgent, type Message } from "./agent/loop.js";
+import { trimHistory } from "./agent/history.js";
 import { planQueries, logQueries } from "./db/index.js";
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-// In-memory session history (one user, one session)
+// In-memory session history. Fitero is a single-user local app by design —
+// one person, one machine, one conversation. Multi-user would need per-session
+// storage and auth; see README "Design notes".
 let conversationHistory: Message[] = [];
 
 app.post("/api/chat", async (req, res) => {
@@ -20,7 +23,7 @@ app.post("/api/chat", async (req, res) => {
 
   try {
     const { reply, history } = await runAgent(message, conversationHistory, context);
-    conversationHistory = history;
+    conversationHistory = trimHistory(history);
     res.json({ reply });
   } catch (err) {
     console.error("Agent error:", err);

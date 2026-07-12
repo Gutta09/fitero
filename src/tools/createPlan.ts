@@ -111,19 +111,36 @@ function scaleExercises(exercises: Exercise[], level: CreatePlanInput["level"]):
 export function createWorkoutPlan(input: CreatePlanInput): WorkoutPlan {
   const focusRotation = FOCUS_ROTATION[input.goal];
   const schedule: WorkoutDay[] = [];
-  let workoutCount = 0;
 
-  for (let i = 0; i < 7 && workoutCount < input.daysPerWeek; i++) {
-    const focus = focusRotation[i % focusRotation.length];
-    if (focus === "Rest") continue;
+  // First pass: honour the rotation's rest-day placement.
+  const workoutDayIndices: number[] = [];
+  const restDayIndices: number[] = [];
+  for (let i = 0; i < 7; i++) {
+    if (focusRotation[i] === "Rest") restDayIndices.push(i);
+    else workoutDayIndices.push(i);
+  }
+
+  // If the user trains more days than the rotation has non-rest slots
+  // (e.g. a 6-day "muscle" split), spill onto the rotation's rest days —
+  // otherwise a 6-day request would silently return a 4-day plan.
+  const chosenDays = [...workoutDayIndices, ...restDayIndices].slice(0, input.daysPerWeek);
+  chosenDays.sort((a, b) => a - b);
+
+  const nonRestFocuses = focusRotation.filter((f) => f !== "Rest");
+  let focusIdx = 0;
+  for (const dayIdx of chosenDays) {
+    const focus =
+      focusRotation[dayIdx] !== "Rest"
+        ? focusRotation[dayIdx]
+        : nonRestFocuses[focusIdx % nonRestFocuses.length];
+    focusIdx++;
 
     const raw = EXERCISE_BANK[focus] ?? EXERCISE_BANK["Full Body"];
     schedule.push({
-      day: DAYS_OF_WEEK[i],
+      day: DAYS_OF_WEEK[dayIdx],
       focus,
       exercises: scaleExercises(raw, input.level),
     });
-    workoutCount++;
   }
 
   const notes: Record<CreatePlanInput["level"], string> = {
